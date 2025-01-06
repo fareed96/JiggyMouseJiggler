@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jiggy Mouse Jiggler + CPU Load + Animations</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      margin: 0;
+      margin-bottom: 10px;
+      color: #333;
+      font-size: 32px;
+    }
+    #controlPanel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background-color: #007bff;
+      color: white;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #status {
+      margin: 5px 0 15px 0;
+      font-size: 14px;
+      color: #333;
+    }
+    #canvas {
+      border: 1px solid #ccc;
+      margin-top: 10px;
+      background-color: #fff;
+    }
+    form {
+      margin: 20px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 400px;
+      max-width: 90%;
+    }
+    input[type="text"] {
+      padding: 8px;
+      font-size: 14px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    .btnGroup {
+      display: flex;
+      gap: 10px;
+    }
+    /* Draggable kutu için */
+    #draggableBox {
+      width: 60px;
+      height: 60px;
+      background-color: #fc5858;
+      text-align: center;
+      line-height: 60px;
+      color: #fff;
+      font-weight: bold;
+      user-select: none;
+      margin-top: 20px;
+      position: relative;
+    }
+    /* Sürükleme efekti */
+    .dragging {
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+  <h1>Jiggy</h1>
+  
+  <div id="controlPanel">
+    <button id="startStopBtn">Start</button>
+    <button id="clickToggleBtn">Click: OFF</button>
+    <button id="keyToggleBtn">KeyPress: OFF</button>
+    <button id="typingToggleBtn">Typing: OFF</button>
+    <button id="dragToggleBtn">Drag: OFF</button>
+    <button id="cpuToggleBtn">CPU: OFF</button>
+  </div>
+  <p id="status">Status: Stopped</p>
+
+  <canvas id="canvas" width="400" height="300"></canvas>
+
+  <!-- Basit bir form -->
+  <form id="exampleForm">
+    <label for="randomInput">Rastgele Metin Girişi Yapılacak Alan:</label>
+    <input type="text" id="randomInput" placeholder="Buraya otomatik yazı gelebilir..." />
+
+    <div class="btnGroup">
+      <button type="button" id="formBtn1">Buton 1</button>
+      <button type="button" id="formBtn2">Buton 2</button>
+      <button type="button" id="formBtn3">Buton 3</button>
+    </div>
+  </form>
+
+  <!-- Sürüklenebilir kutu -->
+  <div id="draggableBox" draggable="true">Drag</div>
+
+  <script>
+    /* === GENEL DEĞİŞKENLER === */
+    let isRunning = false;
+    let mouseMoveInterval;
+    let mouseMovePathIndex = 0;
+    let path = createRandomPath(400, 300, 30); // Fare hareketi için rastgele yörünge
+
+    let clickEnabled = false;
+    let keyPressEnabled = false;
+    let typingEnabled = false;
+    let dragEnabled = false;
+    let cpuEnabled = false; // CPU yükü toggle
+
+    let clickInterval;
+    let keyPressInterval;
+    let typingInterval;
+    let dragInterval;
+    let cpuInterval;
+
+    // requestAnimationFrame animasyonu için
+    let animationId;
+    let animAngle = 0;
+
+    // DOM elementleri
+    const startStopBtn = document.getElementById('startStopBtn');
+    const clickToggleBtn = document.getElementById('clickToggleBtn');
+    const keyToggleBtn = document.getElementById('keyToggleBtn');
+    const typingToggleBtn = document.getElementById('typingToggleBtn');
+    const dragToggleBtn = document.getElementById('dragToggleBtn');
+    const cpuToggleBtn = document.getElementById('cpuToggleBtn');
+
+    const statusText = document.getElementById('status');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const randomInput = document.getElementById('randomInput');
+    const formBtn1 = document.getElementById('formBtn1');
+    const formBtn2 = document.getElementById('formBtn2');
+    const formBtn3 = document.getElementById('formBtn3');
+
+    const draggableBox = document.getElementById('draggableBox');
+
+    /* === EVENT LİSTENER'LAR === */
+    startStopBtn.addEventListener('click', () => {
+      if (!isRunning) {
+        startJiggler();
+        statusText.textContent = 'Status: Running';
+        startStopBtn.textContent = 'Stop';
+        startAnimation(); // Canvas üzerinde animasyon
+      } else {
+        stopJiggler();
+        statusText.textContent = 'Status: Stopped';
+        startStopBtn.textContent = 'Start';
+        stopAnimation();
+      }
+      isRunning = !isRunning;
+    });
+
+    clickToggleBtn.addEventListener('click', () => {
+      clickEnabled = !clickEnabled;
+      clickToggleBtn.textContent = `Click: ${clickEnabled ? 'ON' : 'OFF'}`;
+      if (clickEnabled) {
+        startClicker();
+      } else {
+        stopClicker();
+      }
+    });
+
+    keyToggleBtn.addEventListener('click', () => {
+      keyPressEnabled = !keyPressEnabled;
+      keyToggleBtn.textContent = `KeyPress: ${keyPressEnabled ? 'ON' : 'OFF'}`;
+      if (keyPressEnabled) {
+        startKeyPresser();
+      } else {
+        stopKeyPresser();
+      }
+    });
+
+    typingToggleBtn.addEventListener('click', () => {
+      typingEnabled = !typingEnabled;
+      typingToggleBtn.textContent = `Typing: ${typingEnabled ? 'ON' : 'OFF'}`;
+      if (typingEnabled) {
+        startTyping();
+      } else {
+        stopTyping();
+      }
+    });
+
+    dragToggleBtn.addEventListener('click', () => {
+      dragEnabled = !dragEnabled;
+      dragToggleBtn.textContent = `Drag: ${dragEnabled ? 'ON' : 'OFF'}`;
+      if (dragEnabled) {
+        startDragSimulation();
+      } else {
+        stopDragSimulation();
+      }
+    });
+
+    cpuToggleBtn.addEventListener('click', () => {
+      cpuEnabled = !cpuEnabled;
+      cpuToggleBtn.textContent = `CPU: ${cpuEnabled ? 'ON' : 'OFF'}`;
+      if (cpuEnabled) {
+        startCpuUsage();
+      } else {
+        stopCpuUsage();
+      }
+    });
+
+    /* Form butonlarına gerçek tıklanıyormuş gibi event dispatch */
+    formBtn1.addEventListener('click', () => console.log('Form Buton 1 tıklandı!'));
+    formBtn2.addEventListener('click', () => console.log('Form Buton 2 tıklandı!'));
+    formBtn3.addEventListener('click', () => console.log('Form Buton 3 tıklandı!'));
+
+    /* === MOUSE JIGGLER === */
+    function startJiggler() {
+      mouseMoveInterval = setInterval(() => {
+        const { x, y } = path[mouseMovePathIndex];
+        // Fare hareketi (sanal)
+        const moveEvent = new MouseEvent('mousemove', {
+          clientX: x,
+          clientY: y,
+          bubbles: true
+        });
+        window.dispatchEvent(moveEvent);
+
+        // Her adımda canvas'a bir nokta çizmeye devam
+        drawCircle(x, y);
+
+        mouseMovePathIndex++;
+        if (mouseMovePathIndex >= path.length) {
+          mouseMovePathIndex = 0;
+        }
+      }, getRandomBetween(500, 1500));
+    }
+
+    function stopJiggler() {
+      clearInterval(mouseMoveInterval);
+      stopClicker();
+      stopKeyPresser();
+      stopTyping();
+      stopDragSimulation();
+      stopCpuUsage();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    /* === CLICK SİMÜLASYONU === */
+    function startClicker() {
+      if (clickInterval) clearInterval(clickInterval);
+      clickInterval = setInterval(() => {
+        // Rastgele buton seç
+        const buttons = [formBtn1, formBtn2, formBtn3];
+        const randomBtn = buttons[Math.floor(Math.random() * buttons.length)];
+
+        const clickEvent = new MouseEvent('click', {
+          bubbles: true
+        });
+        randomBtn.dispatchEvent(clickEvent);
+
+        console.log(`Tıklama simüle edildi: ${randomBtn.id}`);
+      }, getRandomBetween(3000, 7000));
+    }
+    function stopClicker() {
+      clearInterval(clickInterval);
+    }
+
+    /* === KLAVYE SİMÜLASYONU === */
+    function startKeyPresser() {
+      if (keyPressInterval) clearInterval(keyPressInterval);
+      const neutralKeys = ['Shift', 'Control', 'Alt', 'Meta', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+      keyPressInterval = setInterval(() => {
+        const randomKey = neutralKeys[Math.floor(Math.random() * neutralKeys.length)];
+        const keyEvent = new KeyboardEvent('keydown', { key: randomKey, bubbles: true });
+        window.dispatchEvent(keyEvent);
+        console.log(`Key pressed: ${randomKey}`);
+      }, getRandomBetween(4000, 9000));
+    }
+    function stopKeyPresser() {
+      clearInterval(keyPressInterval);
+    }
+
+    /* === RASTGELE TYPING (METİN GİRİŞİ) === */
+    function startTyping() {
+      if (typingInterval) clearInterval(typingInterval);
+      const randomWords = ['Merhaba', 'Test', 'Jiggy', 'Mouse', 'Key', 'Deneme', 'HTML', 'CSS', 'JS'];
+      typingInterval = setInterval(() => {
+        // Rastgele kelime seç
+        const word = randomWords[Math.floor(Math.random() * randomWords.length)];
+        // Input'a ekle
+        randomInput.value += (randomInput.value ? ' ' : '') + word;
+        console.log(`Input'a yazıldı: ${word}`);
+      }, getRandomBetween(2000, 5000));
+    }
+    function stopTyping() {
+      clearInterval(typingInterval);
+    }
+
+    /* === DRAG (SÜRÜKLEME) SİMÜLASYONU === */
+    function startDragSimulation() {
+      if (dragInterval) clearInterval(dragInterval);
+      dragInterval = setInterval(() => {
+        // Drag start
+        const dragStartEvent = new DragEvent('dragstart', {
+          bubbles: true
+        });
+        draggableBox.dispatchEvent(dragStartEvent);
+        draggableBox.classList.add('dragging');
+
+        // Bir süre bekleyip dragend yapalım
+        setTimeout(() => {
+          const dragEndEvent = new DragEvent('dragend', {
+            bubbles: true
+          });
+          draggableBox.dispatchEvent(dragEndEvent);
+          draggableBox.classList.remove('dragging');
+          console.log('Sürükleme simüle edildi.');
+        }, getRandomBetween(300, 1000));
+      }, getRandomBetween(5000, 10000));
+    }
+    function stopDragSimulation() {
+      clearInterval(dragInterval);
+      draggableBox.classList.remove('dragging');
+    }
+
+    /* === CPU YÜKÜ (BASİT HESAPLAMA) ===
+       Tarayıcıda küçük bir CPU yükü yaratarak "aktif kullanım" sinyali yaratmaya yardımcı olabilir.
+       Kasıtlı olarak bir miktar döngü yapıyoruz. */
+    function startCpuUsage() {
+      if (cpuInterval) clearInterval(cpuInterval);
+      cpuInterval = setInterval(() => {
+        // Basit bir for döngüsü ile CPU'yu meşgul edelim
+        // Çok abartırsak tarayıcıyi dondurabilir, bu yüzden sınırlı tutuyoruz
+        let sum = 0;
+        for (let i = 0; i < 5000000; i++) {
+          sum += i;
+        }
+        console.log(`CPU işledi, sum: ${sum}`);
+      }, 4000);
+    }
+    function stopCpuUsage() {
+      clearInterval(cpuInterval);
+    }
+
+    /* === CANVAS ANİMASYONU ===
+       requestAnimationFrame ile küçük bir daireyi döndürme animasyonu */
+    function startAnimation() {
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Fare hareketinden bağımsız bir dönen daire
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const radius = 50;
+
+        // animAngle her karede artacak; 0-360
+        animAngle += 2;
+        if (animAngle >= 360) animAngle = 0;
+
+        const rad = (Math.PI / 180) * animAngle;
+        const x = centerX + radius * Math.cos(rad);
+        const y = centerY + radius * Math.sin(rad);
+
+        // Çizim
+        ctx.beginPath();
+        ctx.arc(x, y, 10, 0, Math.PI * 2);
+        ctx.fillStyle = 'blue';
+        ctx.fill();
+        ctx.closePath();
+
+        animationId = requestAnimationFrame(animate);
+      }
+      animationId = requestAnimationFrame(animate);
+    }
+    function stopAnimation() {
+      cancelAnimationFrame(animationId);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    /* === CANVAS'A KIRMIZI DAİRE ÇİZME (FARE HAREKETLERİ İÇİN) === */
+    function drawCircle(x, y) {
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = 'red';
+      ctx.fill();
+      ctx.closePath();
+    }
+
+    /* === RASTGELE YOL OLUŞTURMA FONKSİYONU === */
+    function createRandomPath(width, height, stepCount) {
+      const arr = [];
+      for (let i = 0; i < stepCount; i++) {
+        arr.push({
+          x: getRandomBetween(0, width),
+          y: getRandomBetween(0, height)
+        });
+      }
+      return arr;
+    }
+
+    /* === RASTGELE ARALIKTA DEĞER DÖNDÜREN FONKSİYON === */
+    function getRandomBetween(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    /* === DRAG OLAYLARI NORMALDE NATIVE ÇALIŞSIN DİYE === */
+    draggableBox.addEventListener('dragstart', (e) => {
+      console.log('Gerçek dragstart yakalandı...');
+    });
+    draggableBox.addEventListener('dragend', (e) => {
+      console.log('Gerçek dragend yakalandı...');
+    });
+  </script>
+</body>
+</html>
