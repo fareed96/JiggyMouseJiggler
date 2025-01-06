@@ -67,7 +67,6 @@
       display: flex;
       gap: 10px;
     }
-    /* Draggable kutu için */
     #draggableBox {
       width: 60px;
       height: 60px;
@@ -80,7 +79,6 @@
       margin-top: 20px;
       position: relative;
     }
-    /* Sürükleme efekti */
     .dragging {
       opacity: 0.6;
     }
@@ -101,33 +99,33 @@
 
   <canvas id="canvas" width="400" height="300"></canvas>
 
-  <!-- Basit bir form -->
+  <!-- Basic form -->
   <form id="exampleForm">
-    <label for="randomInput">Rastgele Metin Girişi Yapılacak Alan:</label>
-    <input type="text" id="randomInput" placeholder="Buraya otomatik yazı gelebilir..." />
+    <label for="randomInput">Random text input:</label>
+    <input type="text" id="randomInput" placeholder="Text will be written automatically..." />
 
     <div class="btnGroup">
-      <button type="button" id="formBtn1">Buton 1</button>
-      <button type="button" id="formBtn2">Buton 2</button>
-      <button type="button" id="formBtn3">Buton 3</button>
+      <button type="button" id="formBtn1">Button 1</button>
+      <button type="button" id="formBtn2">Button 2</button>
+      <button type="button" id="formBtn3">Button 3</button>
     </div>
   </form>
 
-  <!-- Sürüklenebilir kutu -->
+  <!-- Draggable box -->
   <div id="draggableBox" draggable="true">Drag</div>
 
   <script>
-    /* === GENEL DEĞİŞKENLER === */
+    /* === GENERAL VARIABLES === */
     let isRunning = false;
     let mouseMoveInterval;
     let mouseMovePathIndex = 0;
-    let path = createRandomPath(400, 300, 30); // Fare hareketi için rastgele yörünge
+    let path = createRandomPath(400, 300, 30);
 
     let clickEnabled = false;
     let keyPressEnabled = false;
     let typingEnabled = false;
     let dragEnabled = false;
-    let cpuEnabled = false; // CPU yükü toggle
+    let cpuEnabled = false;
 
     let clickInterval;
     let keyPressInterval;
@@ -135,11 +133,10 @@
     let dragInterval;
     let cpuInterval;
 
-    // requestAnimationFrame animasyonu için
     let animationId;
     let animAngle = 0;
 
-    // DOM elementleri
+    // DOM
     const startStopBtn = document.getElementById('startStopBtn');
     const clickToggleBtn = document.getElementById('clickToggleBtn');
     const keyToggleBtn = document.getElementById('keyToggleBtn');
@@ -158,7 +155,7 @@
 
     const draggableBox = document.getElementById('draggableBox');
 
-    /* === EVENT LİSTENER'LAR === */
+    /* === EVENT LISTENERS === */
     startStopBtn.addEventListener('click', () => {
       if (!isRunning) {
         startJiggler();
@@ -224,7 +221,7 @@
       }
     });
 
-    /* Form butonlarına gerçek tıklanıyormuş gibi event dispatch */
+   
     formBtn1.addEventListener('click', () => console.log('Form Buton 1 tıklandı!'));
     formBtn2.addEventListener('click', () => console.log('Form Buton 2 tıklandı!'));
     formBtn3.addEventListener('click', () => console.log('Form Buton 3 tıklandı!'));
@@ -233,7 +230,7 @@
     function startJiggler() {
       mouseMoveInterval = setInterval(() => {
         const { x, y } = path[mouseMovePathIndex];
-        // Fare hareketi (sanal)
+        
         const moveEvent = new MouseEvent('mousemove', {
           clientX: x,
           clientY: y,
@@ -241,7 +238,6 @@
         });
         window.dispatchEvent(moveEvent);
 
-        // Her adımda canvas'a bir nokta çizmeye devam
         drawCircle(x, y);
 
         mouseMovePathIndex++;
@@ -261,7 +257,6 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
-    /* === CLICK SİMÜLASYONU === */
     function startClicker() {
       if (clickInterval) clearInterval(clickInterval);
       clickInterval = setInterval(() => {
@@ -281,7 +276,6 @@
       clearInterval(clickInterval);
     }
 
-    /* === KLAVYE SİMÜLASYONU === */
     function startKeyPresser() {
       if (keyPressInterval) clearInterval(keyPressInterval);
       const neutralKeys = ['Shift', 'Control', 'Alt', 'Meta', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
@@ -296,14 +290,12 @@
       clearInterval(keyPressInterval);
     }
 
-    /* === RASTGELE TYPING (METİN GİRİŞİ) === */
     function startTyping() {
       if (typingInterval) clearInterval(typingInterval);
-      const randomWords = ['Merhaba', 'Test', 'Jiggy', 'Mouse', 'Key', 'Deneme', 'HTML', 'CSS', 'JS'];
+      const randomWords = ['Hello', 'Test', 'Jiggy', 'Mouse', 'Key', 'Test', 'HTML', 'CSS', 'JS'];
       typingInterval = setInterval(() => {
-        // Rastgele kelime seç
         const word = randomWords[Math.floor(Math.random() * randomWords.length)];
-        // Input'a ekle
+        
         randomInput.value += (randomInput.value ? ' ' : '') + word;
         console.log(`Input'a yazıldı: ${word}`);
       }, getRandomBetween(2000, 5000));
@@ -312,18 +304,15 @@
       clearInterval(typingInterval);
     }
 
-    /* === DRAG (SÜRÜKLEME) SİMÜLASYONU === */
     function startDragSimulation() {
       if (dragInterval) clearInterval(dragInterval);
       dragInterval = setInterval(() => {
-        // Drag start
         const dragStartEvent = new DragEvent('dragstart', {
           bubbles: true
         });
         draggableBox.dispatchEvent(dragStartEvent);
         draggableBox.classList.add('dragging');
-
-        // Bir süre bekleyip dragend yapalım
+        
         setTimeout(() => {
           const dragEndEvent = new DragEvent('dragend', {
             bubbles: true
@@ -339,9 +328,6 @@
       draggableBox.classList.remove('dragging');
     }
 
-    /* === CPU YÜKÜ (BASİT HESAPLAMA) ===
-       Tarayıcıda küçük bir CPU yükü yaratarak "aktif kullanım" sinyali yaratmaya yardımcı olabilir.
-       Kasıtlı olarak bir miktar döngü yapıyoruz. */
     function startCpuUsage() {
       if (cpuInterval) clearInterval(cpuInterval);
       cpuInterval = setInterval(() => {
@@ -358,18 +344,14 @@
       clearInterval(cpuInterval);
     }
 
-    /* === CANVAS ANİMASYONU ===
-       requestAnimationFrame ile küçük bir daireyi döndürme animasyonu */
     function startAnimation() {
       function animate() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Fare hareketinden bağımsız bir dönen daire
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
         const radius = 50;
 
-        // animAngle her karede artacak; 0-360
         animAngle += 2;
         if (animAngle >= 360) animAngle = 0;
 
@@ -377,7 +359,6 @@
         const x = centerX + radius * Math.cos(rad);
         const y = centerY + radius * Math.sin(rad);
 
-        // Çizim
         ctx.beginPath();
         ctx.arc(x, y, 10, 0, Math.PI * 2);
         ctx.fillStyle = 'blue';
@@ -393,7 +374,6 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
-    /* === CANVAS'A KIRMIZI DAİRE ÇİZME (FARE HAREKETLERİ İÇİN) === */
     function drawCircle(x, y) {
       ctx.beginPath();
       ctx.arc(x, y, 5, 0, Math.PI * 2);
@@ -402,7 +382,6 @@
       ctx.closePath();
     }
 
-    /* === RASTGELE YOL OLUŞTURMA FONKSİYONU === */
     function createRandomPath(width, height, stepCount) {
       const arr = [];
       for (let i = 0; i < stepCount; i++) {
@@ -414,12 +393,10 @@
       return arr;
     }
 
-    /* === RASTGELE ARALIKTA DEĞER DÖNDÜREN FONKSİYON === */
     function getRandomBetween(min, max) {
       return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
-    /* === DRAG OLAYLARI NORMALDE NATIVE ÇALIŞSIN DİYE === */
     draggableBox.addEventListener('dragstart', (e) => {
       console.log('Gerçek dragstart yakalandı...');
     });
